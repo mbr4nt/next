@@ -105,21 +105,21 @@ var lesson10 = {
     var object, material, radius;
     var objGeometry = new THREE.SphereGeometry(1, 24, 24);
     for (var i = 0; i < 50; i++) {
-      material = new THREE.MeshPhongMaterial({color: Math.random() * 0xffffff});
-      material.transparent = true;
-      object = new THREE.Mesh(objGeometry.clone(), material);
-      this.objects.push(object);
+      // material = new THREE.MeshPhongMaterial({color: Math.random() * 0xffffff});
+      // material.transparent = true;
+      // object = new THREE.Mesh(objGeometry.clone(), material);
+      // this.objects.push(object);
 
-      radius = Math.random() * 4 + 2;
-      object.scale.x = radius;
-      object.scale.y = radius;
-      object.scale.z = radius;
+      // radius = Math.random() * 4 + 2;
+      // object.scale.x = radius;
+      // object.scale.y = radius;
+      // object.scale.z = radius;
 
-      object.position.x = Math.random() * 50 - 25;
-      object.position.y = Math.random() * 50 - 25;
-      object.position.z = Math.random() * 50 - 25;
+      // object.position.x = Math.random() * 50 - 25;
+      // object.position.y = Math.random() * 50 - 25;
+      // object.position.z = Math.random() * 50 - 25;
 
-      this.scene.add(object);
+      // this.scene.add(object);
     }
 
   },
@@ -207,6 +207,16 @@ function animate() {
   requestAnimationFrame(animate);
   render();
   update();
+  if($next) {
+    var ball = $next.space.objects[0];
+    if(ball) {
+      if(ball.model.radius < 50) {
+        ball.model.radius ++;
+        ball.stale = true;
+      }
+    }
+    $next.refresh();
+  }
 }
 
 // Update controls and stats
@@ -228,6 +238,7 @@ function render() {
 function initializeLesson() {
   lesson10.init();
   animate();
+  testBalls();
 }
 
 if (window.addEventListener)
@@ -239,6 +250,60 @@ else window.onload = initializeLesson;
 
 /*******************my stuff***************** */
 var $next = {};
+
+//functions
+$next.functions = {};
+
+//this makes an array of a type
+$next.functions.array = function(ofType) {
+  //for now just return empty array
+  return [];
+};
+
+$next.functions.new = function(typeName, defaults) {
+  
+  if(!defaults) defaults = {};
+  
+  var instance = jQuery.extend($next.contracts[typeName](), defaults);
+  return instance;
+}
+
+$next.functions.updateObject = function(obj) {
+  //TODO: inject
+  if(!lesson10) return;
+  var prim = obj.get3D();
+  if(obj.stale) {
+    lesson10.scene.remove(prim);
+    obj.prims = null;
+    var prim = obj.get3D();
+    obj.stale = false;
+  }
+  lesson10.objects.push(prim);
+  lesson10.scene.add(prim);
+}
+
+function remove(array, element) {
+  const index = array.indexOf(element);
+  array.splice(index, 1);
+}
+
+$next.functions.refresh = function() {
+  // lesson10.objects.splice(0,lesson10.objects.length);
+  lesson10.objects = [];
+  $next.space.objects.forEach(function(obj) {
+    // lesson10.objects.push(obj);
+    $next.functions.updateObject(obj);
+  });
+};
+
+/***********shortcuts ******** */
+$n = $next;
+
+$next.array = $next.functions.array;
+$next.new = $next.functions.new;
+$next.refresh = $next.functions.refresh;
+
+/**************contracts********** */
 
 //I'll keep one example of each in here
 $next.contracts = {};
@@ -281,30 +346,86 @@ $next.contracts.box = function() {
   };
 };
 
-//space
-$next.contracts.space = function() { return {
-  boxes: $next.array($next.contracts.box())
+//sphere
+$next.contracts.sphere = function() { return {
+  position: $next.new("position"),
+  radius: 0
 }; };
 
-//functions
-$next.functions = {};
+//space
+$next.contracts.space = function() { return {
+  objects: $next.array("object"),
+  push: function(item) {
+    this.objects.push(item);
+  }
+}; };
+$next.space = $next.contracts.space();
 
-//this makes an array of a type
-$next.function.array = function(ofType) {
-  //for now just return empty array
-  return [];
-};
+//prim
+$next.contracts.prim = function() { return {
+  create: function() { /*create the instance of the 3d obj*/ },
+  prepare: function(instance) { /*set properties here*/ },
+  finalize: function(instance) { /*not sure what for yet*/ }
+}; };
 
-$next.function.new = function(typeName, defaults) {
-  var instance = $next.contracts[typeName]();
-  
-}
+//object
+$next.contracts.object = function(model) { return {
+  model: model, /* data model */
+  position: $next.new("position"),
+  parent: null, 
+  prims: null,
+  build3D: function() {
+    //build your 3d here
+  },
+  get3D: function() {
+    if(!this.prims) {
+      this.prims = this.build3D();
+    }
+    return this.prims;
+  },
+  localBound: $next.new("box"),
+  stale: false /* set to true when in need of a refresh */
+}; };
 
-/***********shortcuts ******** */
-$n = $next;
+/**************** objects ************ */
+$next.objects = {};
 
-$next.array = $next.functions.array();
+$next.objects.ball = function(model) { 
+  console.log(model);
+  var obj = $next.contracts.object(model);
+  obj.build3D = function() {
+    var material = new THREE.MeshPhongMaterial({color: 0xff00ff});
+    material.transparent = true;
+    var objGeometry = new THREE.SphereGeometry(1, 24, 24);
+    var prim = new THREE.Mesh(objGeometry.clone(), material);
+
+    radius = model.radius;
+    prim.scale.x = radius;
+    prim.scale.y = radius;
+    prim.scale.z = radius;
+
+    prim.position.x = model.position.origin.x;
+    prim.position.y = model.position.origin.y;
+    prim.position.z = model.position.origin.z;
+
+    return prim;
+
+  };
+  return obj;
+ };
+
+
+
+
 
 
 
 /************* gambiarra test code ************* */
+function testBalls() {
+  var ballModel = $next.new("sphere");
+  ballModel.radius = 10;
+  var myBall = $next.objects.ball(ballModel);
+  
+  $next.space.push(myBall);
+  $next.refresh();
+}
