@@ -65,12 +65,12 @@ var lesson10 = {
 
     // Events
     THREEx.WindowResize(this.renderer, this.camera);
-    document.addEventListener('mousedown', this.onDocumentMouseDown, false);
-    document.addEventListener('mousemove', this.onDocumentMouseMove, false);
-    document.addEventListener('mouseup', this.onDocumentMouseUp, false);
+    // document.addEventListener('mousedown', this.onDocumentMouseDown, false);
+    // document.addEventListener('mousemove', this.onDocumentMouseMove, false);
+    // document.addEventListener('mouseup', this.onDocumentMouseUp, false);
 
     // Prepare Orbit controls
-    this.controls = new THREE.OrbitControls(this.camera);
+    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
     this.controls.target = new THREE.Vector3(0, 0, 0);
     this.controls.maxDistance = 150;
 
@@ -163,7 +163,7 @@ var lesson10 = {
     }
   },
   onDocumentMouseMove: function (event) {
-    event.preventDefault();
+    // event.preventDefault();
 
     // Get mouse position
     var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
@@ -210,10 +210,10 @@ function animate() {
   if($next) {
     var ball = $next.space.objects[0];
     if(ball) {
-      if(ball.model.radius < 50) {
-        ball.model.radius ++;
-        ball.stale = true;
-      }
+      // if(ball.model.radius < 50) {
+      //   ball.model.radius ++;
+      //   ball.stale = true;
+      // }
     }
     $next.refresh();
   }
@@ -272,11 +272,12 @@ $next.functions.updateObject = function(obj) {
   //TODO: inject
   if(!lesson10) return;
   var prim = obj.get3D();
-  if(obj.stale) {
+  if(obj.stale || obj.model.stale) {
     lesson10.scene.remove(prim);
     obj.prims = null;
     var prim = obj.get3D();
     obj.stale = false;
+    obj.model.stale = false;
   }
   lesson10.objects.push(prim);
   lesson10.scene.add(prim);
@@ -349,7 +350,12 @@ $next.contracts.box = function() {
 //sphere
 $next.contracts.sphere = function() { return {
   position: $next.new("position"),
-  radius: 0
+  radius: 0,
+  coco: "oi",
+  domains: {
+    radius: function() { return [10,20,30]; },
+    coco: function() { return ["oi", "tio"]; }
+  }
 }; };
 
 //space
@@ -414,6 +420,33 @@ $next.objects.ball = function(model) {
   return obj;
  };
 
+ /****************prop box*************** */
+ $next.ui = {};
+
+ $next.ui.propBox = function(model) {
+    
+    var gui = new dat.GUI();
+    var propKeys = Object.keys(model);
+    var domains = model["domains"];
+    if(!domains) return null;
+
+    propKeys.forEach(function (propKey) {
+      if(propKey == "domains") return;
+
+      var domainFunction = domains[propKey];
+      if(!domainFunction) return;
+
+      //TODO: pretty name
+      console.log(model, model[propKey]);
+      gui.add(model, propKey, domainFunction()).name(propKey).onChange(function() {
+        console.log(model);
+        model.stale = true;
+      });
+    });
+
+    return gui;
+ };
+
 
 
 
@@ -428,4 +461,7 @@ function testBalls() {
   
   $next.space.push(myBall);
   $next.refresh();
+
+  var props = $next.ui.propBox(ballModel);
+  props.open();
 }
