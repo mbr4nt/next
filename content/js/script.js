@@ -99,7 +99,7 @@ var lesson10 = {
     // Plane, that helps to determinate an intersection position
     this.plane = new THREE.Mesh(new THREE.PlaneBufferGeometry(500, 500, 8, 8), new THREE.MeshBasicMaterial({color: 0xffffff}));
     // this.plane.visible = false;
-    this.scene.add(this.plane);
+    this.scene.add(referencePlane());
 
 
   },
@@ -185,7 +185,9 @@ var lesson10 = {
 };
 
 function referencePlane() {
-  return new THREE.PlaneGeometry(1000,1000, 0, 0);
+  var plane = new THREE.PlaneGeometry(1000,1000, 0, 0);
+  plane.material = new THREE.MeshPhongMaterial({color: 0xff00ff});
+  return plane;
 }
 
 // Animate the scene
@@ -397,8 +399,12 @@ $next.contracts.box = function() {
 $next.contracts.sphere = function() { return {
   position: $next.new("position"),
   radius: 0,
+  linguica: "calabresa",
   domains: {
-    radius: function() { return [10,20,30]; }
+    radius: function() { return [10,20,30]; },
+    linguica: function() {
+      return [ "calabresa", "toscana", "fininsha gostosa", "apimentada"];
+    }
   }
 }; };
 
