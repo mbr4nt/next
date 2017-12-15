@@ -65,9 +65,9 @@ var lesson10 = {
 
     // Events
     THREEx.WindowResize(this.renderer, this.camera);
-    // document.addEventListener('mousedown', this.onDocumentMouseDown, false);
-    // document.addEventListener('mousemove', this.onDocumentMouseMove, false);
-    // document.addEventListener('mouseup', this.onDocumentMouseUp, false);
+    document.addEventListener('mousedown', this.onDocumentMouseDown, false);
+    document.addEventListener('mousemove', this.onDocumentMouseMove, false);
+    document.addEventListener('mouseup', this.onDocumentMouseUp, false);
 
     // Prepare Orbit controls
     this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
@@ -101,26 +101,6 @@ var lesson10 = {
     // this.plane.visible = false;
     this.scene.add(this.plane);
 
-    // Add 100 random objects (spheres)
-    var object, material, radius;
-    var objGeometry = new THREE.SphereGeometry(1, 24, 24);
-    for (var i = 0; i < 50; i++) {
-      // material = new THREE.MeshPhongMaterial({color: Math.random() * 0xffffff});
-      // material.transparent = true;
-      // object = new THREE.Mesh(objGeometry.clone(), material);
-      // this.objects.push(object);
-
-      // radius = Math.random() * 4 + 2;
-      // object.scale.x = radius;
-      // object.scale.y = radius;
-      // object.scale.z = radius;
-
-      // object.position.x = Math.random() * 50 - 25;
-      // object.position.y = Math.random() * 50 - 25;
-      // object.position.z = Math.random() * 50 - 25;
-
-      // this.scene.add(object);
-    }
 
   },
   addSkybox: function() {
@@ -152,18 +132,24 @@ var lesson10 = {
 
     if (intersects.length > 0) {
       // Disable the controls
-      lesson10.controls.enabled = false;
+      // lesson10.controls.enabled = false;
 
       // Set the selection - first intersected object
       lesson10.selection = intersects[0].object;
 
+      console.log(lesson10.selection);
+      $next.select(lesson10.selection);
+
       // Calculate the offset
-      var intersects = lesson10.raycaster.intersectObject(lesson10.plane);
-      lesson10.offset.copy(intersects[0].point).sub(lesson10.plane.position);
+      // var intersects = lesson10.raycaster.intersectObject(referencePlane());
+      // lesson10.offset.copy(intersects[0].point).sub(referencePlane().position);
+    } else {
+      $next.select(null);
     }
   },
   onDocumentMouseMove: function (event) {
-    // event.preventDefault();
+    return;
+    event.preventDefault();
 
     // Get mouse position
     var mouseX = (event.clientX / window.innerWidth) * 2 - 1;
@@ -178,8 +164,8 @@ var lesson10 = {
 
     if (lesson10.selection) {
       // Check the position where the plane is intersected
-      var intersects = lesson10.raycaster.intersectObject(lesson10.plane);
-      // var intersects = lesson10.raycaster.intersectObject(referencePlane());
+      // var intersects = lesson10.raycaster.intersectObject(lesson10.plane);
+      var intersects = lesson10.raycaster.intersectObject(referencePlane());
       // Reposition the object based on the intersection point with the plane
       lesson10.selection.position.copy(intersects[0].point.sub(lesson10.offset));
     } else {
@@ -249,10 +235,52 @@ else window.onload = initializeLesson;
 
 
 /*******************my stuff***************** */
+
 var $next = {};
 
 //functions
 $next.functions = {};
+
+$next.functions.meshOutline = function(mesh) {
+  var outlineMaterial = new THREE.MeshBasicMaterial( { color: 0xffff00, side: THREE.BackSide } );
+  var outlineMesh = mesh.clone();
+  outlineMesh.material = outlineMaterial;
+  
+	outlineMesh.position = mesh.position;
+	outlineMesh.scale.multiplyScalar(1.05);
+  
+  return outlineMesh;
+}
+
+$next.functions.clone = function(obj){
+  //in case of premitives
+  if(obj===null || typeof obj !== "object"){
+    return obj;
+  }
+ 
+  //date objects should be 
+  if(obj instanceof Date){
+    return new Date(obj.getTime());
+  }
+ 
+  //handle Array
+  if(Array.isArray(obj)){
+    var clonedArr = [];
+    obj.forEach(function(element){
+      clonedArr.push($next.functions.clone(element))
+    });
+    return clonedArr;
+  }
+ 
+  //lastly, handle objects
+  let clonedObj = new obj.constructor();
+  for(var prop in obj){
+    if(obj.hasOwnProperty(prop)){
+      clonedObj[prop] = $next.functions.clone(obj[prop]);
+    }
+  }
+  return clonedObj;
+};
 
 //this makes an array of a type
 $next.functions.array = function(ofType) {
@@ -269,18 +297,33 @@ $next.functions.new = function(typeName, defaults) {
 }
 
 $next.functions.updateObject = function(obj) {
+
   //TODO: inject
   if(!lesson10) return;
+
+  var updated = false;
+
   var prim = obj.get3D();
+
   if(obj.stale || obj.model.stale) {
-    lesson10.scene.remove(prim);
+    $next.scene().remove(prim);
     obj.prims = null;
     var prim = obj.get3D();
     obj.stale = false;
     obj.model.stale = false;
+    if(prim) {
+      $next.scene().add(prim);
+    }
+    
+    updated = true;
   }
-  lesson10.objects.push(prim);
-  lesson10.scene.add(prim);
+  if(prim) {
+    lesson10.objects.push(prim);
+    prim.model = obj.model;
+    prim.obj = obj;
+  }
+
+  return updated;
 }
 
 function remove(array, element) {
@@ -289,12 +332,15 @@ function remove(array, element) {
 }
 
 $next.functions.refresh = function() {
-  // lesson10.objects.splice(0,lesson10.objects.length);
+  var updated = false;
   lesson10.objects = [];
   $next.space.objects.forEach(function(obj) {
-    // lesson10.objects.push(obj);
-    $next.functions.updateObject(obj);
+    var updatedObj = $next.functions.updateObject(obj);
+    if(updatedObj) updated = true;
   });
+  if(updated) {
+    this.refreshSelection();
+  }
 };
 
 /***********shortcuts ******** */
@@ -351,10 +397,8 @@ $next.contracts.box = function() {
 $next.contracts.sphere = function() { return {
   position: $next.new("position"),
   radius: 0,
-  coco: "oi",
   domains: {
-    radius: function() { return [10,20,30]; },
-    coco: function() { return ["oi", "tio"]; }
+    radius: function() { return [10,20,30]; }
   }
 }; };
 
@@ -362,6 +406,7 @@ $next.contracts.sphere = function() { return {
 $next.contracts.space = function() { return {
   objects: $next.array("object"),
   push: function(item) {
+    item.stale = true;
     this.objects.push(item);
   }
 }; };
@@ -375,23 +420,27 @@ $next.contracts.prim = function() { return {
 }; };
 
 //object
-$next.contracts.object = function(model) { return {
-  model: model, /* data model */
-  position: $next.new("position"),
-  parent: null, 
-  prims: null,
-  build3D: function() {
-    //build your 3d here
-  },
-  get3D: function() {
-    if(!this.prims) {
-      this.prims = this.build3D();
-    }
-    return this.prims;
-  },
-  localBound: $next.new("box"),
-  stale: false /* set to true when in need of a refresh */
-}; };
+$next.contracts.object = function(model) { 
+  var obj = {
+    model: model, /* data model */
+    position: $next.new("position"),
+    parent: null, 
+    prims: null,
+    build3D: function() {
+      //build your 3d here
+    },
+    get3D: function() {
+      if(!this.prims) {
+        this.prims = this.build3D();
+      }
+      return this.prims;
+    },
+    localBound: $next.new("box"),
+    stale: false /* set to true when in need of a refresh */
+  }; 
+  obj.model.obj = obj;
+  return obj;
+};
 
 /**************** objects ************ */
 $next.objects = {};
@@ -437,9 +486,7 @@ $next.objects.ball = function(model) {
       if(!domainFunction) return;
 
       //TODO: pretty name
-      console.log(model, model[propKey]);
       gui.add(model, propKey, domainFunction()).name(propKey).onChange(function() {
-        console.log(model);
         model.stale = true;
       });
     });
@@ -447,6 +494,51 @@ $next.objects.ball = function(model) {
     return gui;
  };
 
+ /*********scene*********** */
+ $next.scene = function() { return lesson10.scene; }
+
+ /***************selection*********** */
+ $next.selection = null;
+ $next.selectedMesh = null;
+ $next.selectionHighlight = null;
+ $next.select = function(mesh) {
+   //TODO: handle when user clicks anything other than objects
+   if(!mesh) return;
+   
+  if(mesh) {
+    this.selection = mesh.model;
+  } else {
+    this.selection = null;
+  }
+  this.selectedMesh = mesh;
+  this.refreshSelection();
+ }
+
+ $next.refreshSelection = function() {
+   this.highlightSelection();
+   this.buildProps();
+ }
+
+ $next.highlightSelection = function() {
+  if(this.selectionHighlight) this.scene().remove(this.selectionHighlight);
+  
+  this.selectionHighlight = null;
+  if(this.selection) {
+    this.selectionHighlight = this.functions.meshOutline(this.selection.obj.get3D());
+    $next.scene().add(this.selectionHighlight);
+  } 
+ };
+
+ /*********prop box***** */
+ $next.propBox = null;
+
+ $next.buildProps = function() {
+  if(this.propBox) this.propBox.destroy();
+  if(this.selection) {
+    $next.propBox = $next.ui.propBox(this.selection);
+    $next.propBox.open();
+  }
+ };
 
 
 
@@ -455,13 +547,22 @@ $next.objects.ball = function(model) {
 
 /************* gambiarra test code ************* */
 function testBalls() {
-  var ballModel = $next.new("sphere");
-  ballModel.radius = 10;
+  var ballModel = $next.new("sphere", {
+    radius: 10
+  });
+  ballModel.position.origin.z = ballModel.radius;
   var myBall = $next.objects.ball(ballModel);
   
   $next.space.push(myBall);
-  $next.refresh();
 
-  var props = $next.ui.propBox(ballModel);
-  props.open();
+  var ballModel2 = $next.new("sphere", {
+    radius: 10
+  });
+  ballModel2.position.origin.z = ballModel2.radius;
+  ballModel2.position.origin.x = 50;
+  var myBall2 = $next.objects.ball(ballModel2);
+  
+  $next.space.push(myBall2);
+
+ 
 }
