@@ -336,7 +336,7 @@ $custom.ArvereGeometry = class extends $next.Geometry {
         $next.textureMaterial(def, 3.5, function(material) {
             $next.import("3d/test-02-3ds.dae", function(meshes) {
                 var overrides = {};
-                overrides[layerMap.tableTop] = new THREE.MeshPhongMaterial({color: 0x777777});
+                overrides[layerMap.tableTop] = new THREE.MeshPhongMaterial({color: 0x777777, shininess: 70});
                 overrides[layerMap.tvFrame] = new THREE.MeshPhongMaterial({color: 0x050505});
                 overrides[layerMap.tvScreen] = new THREE.MeshPhongMaterial({color: 0x000000});
                 overrides[layerMap.grometBorder] = new THREE.MeshPhongMaterial({color: 0x404040});

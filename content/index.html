@@ -39,36 +39,22 @@
 
 			// ref for lumens: http://www.power-sure.com/lumens.htm
 			var bulbLuminousPowers = {
-				"110000 lm (1000W)": 110000,
-				"3500 lm (300W)": 3500,
-				"1700 lm (100W)": 1700,
-				"800 lm (60W)": 800,
-				"400 lm (40W)": 400,
-				"180 lm (25W)": 180,
-				"20 lm (4W)": 20,
-				"Off": 0
+				"Bright": 110000,
+				"Dark": 35000
 			};
 
 			// ref for solar irradiances: https://en.wikipedia.org/wiki/Lux
 			var hemiLuminousIrradiances = {
-				"0.0001 lx (Moonless Night)": 0.0001,
-				"0.002 lx (Night Airglow)": 0.002,
-				"0.5 lx (Full Moon)": 0.5,
-				"3.4 lx (City Twilight)": 3.4,
-				"50 lx (Living Room)": 50,
-				"100 lx (Very Overcast)": 100,
-				"350 lx (Office Room)": 350,
-				"400 lx (Sunrise/Sunset)": 400,
-				"1000 lx (Overcast)": 1000,
-				"18000 lx (Daylight)": 18000,
-				"50000 lx (Direct Sun)": 50000
+				"Bright": 350,
+				"Dark": 50,
 			};
 
 			var params = {
 				shadows: true,
-				exposure: 0.68,
-				bulbPower: Object.keys( bulbLuminousPowers )[ 2 ],
-				hemiIrradiance: Object.keys( hemiLuminousIrradiances )[4]
+				spotlight: true,
+				exposure: 0.47,
+				bulbPower: Object.keys( bulbLuminousPowers )[ 0 ],
+				hemiIrradiance: Object.keys( hemiLuminousIrradiances )[0]
 			};
 
 
@@ -122,10 +108,11 @@
 
 				var gui = new dat.GUI();
 
-				gui.add( params, 'hemiIrradiance', Object.keys( hemiLuminousIrradiances ) );
-				gui.add( params, 'bulbPower', Object.keys( bulbLuminousPowers ) );
-				gui.add( params, 'exposure', 0, 1 );
-				gui.add( params, 'shadows' );
+				gui.add( params, 'hemiIrradiance', Object.keys( hemiLuminousIrradiances ) ).name("Lighting");
+				// gui.add( params, 'bulbPower', Object.keys( bulbLuminousPowers ) );
+				// gui.add( params, 'exposure', 0, 1 );
+				gui.add( params, 'shadows' ).name("Shadows");
+				gui.add( params, 'spotlight' ).name("Spotlight");
 				gui.open();
 			}
 
@@ -156,7 +143,7 @@
 				
 					previousShadowMap = params.shadows;
 				}
-				bulbLight.power = bulbLuminousPowers[ params.bulbPower ];
+				bulbLight.power = params.spotlight ? bulbLuminousPowers[ params.hemiIrradiance ] : 0;
 				bulbMat.emissiveIntensity = bulbLight.intensity / Math.pow( 0.02, 2.0 ); // convert from intensity to irradiance at bulb surface
 
 				hemiLight.intensity = hemiLuminousIrradiances[ params.hemiIrradiance ];
