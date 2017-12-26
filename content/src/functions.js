@@ -8,3 +8,8 @@ n3xt.functions.guid = function() {
   }
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }
+
+n3xt.namespace = function(namespace) {
+  if(namespace) namespace;
+  return {};
+}

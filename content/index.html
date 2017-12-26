@@ -30,6 +30,8 @@
 
 		<script>
 
+			
+
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
 			var camera, scene, renderer,
@@ -77,7 +79,9 @@
 
 				scene = new THREE.Scene();
 				engine = n3xt(scene);
-				test(engine);
+				tests.forEach(function(test){
+					test(engine);
+				});
 
 				scene.background = new THREE.Color( 0xaaaaaa );
 				bulbLight = new THREE.PointLight( 0xffee88, 1, 100, 2 );

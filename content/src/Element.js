@@ -5,10 +5,25 @@ n3xt.Element = class {
         this.id = n3xt.functions.guid();
         this.group = null;
         this.status = n3xt.elementStatus.stale; 
+        this.name = "Generic Element";
     }
 
+
     fetch3D(done) {
-        done(null);
+        var self = this;
+        var geometries = self.geometries;
+
+        async.map(geometries, function(geometry, callback){
+            geometry.instantiate(self.model, function(threeObj) {
+                callback(null, threeObj);
+            });
+        }, function(err, result) {
+            done(result);
+        });
+    }
+
+    get geometries() {
+        return [];
     }
 
     remove() {

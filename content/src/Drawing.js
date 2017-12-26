@@ -20,25 +20,32 @@ n3xt.Drawing = class extends n3xt.Group {
             }
         });
 
-        async.map(staleElements, this.fetchElement3D, function(err, result){
-            result.forEach(function(item) {
-                if(item.old3D) scene.remove(item.old3D);
-                item.element.threeObj = item.new3D;
-                scene.add(item.new3D);
-                item.element.status = n3xt.elementStatus.valid;
+        async.map(staleElements, this.fetchElement3D, function(err, result) {
+            result.forEach(function(info) {
+                info.forEach(function(item){
+                    if(item.old3D) scene.remove(item.old3D);
+                    item.element.threeObj = item.new3D;
+                    scene.add(item.new3D);
+                    item.element.status = n3xt.elementStatus.valid;
+                });
             });
         });
         this.updateStatus();
     }
 
-    fetchElement3D(element, done) {
-        element.fetch3D(function(threeObj){
-            threeObj.n3xtID = element.id;
-            done(null, {
-                element: element,
-                old3D: element.threeObj,
-                new3D: threeObj
+    fetchElement3D(element, callback) {
+        
+        element.fetch3D(function(threeObjs){
+            var info = [];
+            threeObjs.forEach(function(threeObj) {
+                threeObj.n3xtID = element.id;
+                info.push({
+                    element: element,
+                    old3D: element.threeObj,
+                    new3D: threeObj
+                });
             });
+            callback(null, info);
         });
     }
 

@@ -17,3 +17,5 @@ class N3xt {
     }
 
 }
+
+var tests = [];

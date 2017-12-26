@@ -20,6 +20,8 @@ class N3xt {
     }
 
 }
+
+var tests = [];
 /*****************************/
 n3xt.functions = {};
 
@@ -31,6 +33,11 @@ n3xt.functions.guid = function() {
   }
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }
+
+n3xt.namespace = function(namespace) {
+  if(namespace) namespace;
+  return {};
+}
 /*****************************/
 n3xt.Element = class {
     constructor(model=null, position=new n3xt.Position()) {
@@ -39,10 +46,25 @@ n3xt.Element = class {
         this.id = n3xt.functions.guid();
         this.group = null;
         this.status = n3xt.elementStatus.stale; 
+        this.name = "Generic Element";
     }
 
+
     fetch3D(done) {
-        done(null);
+        var self = this;
+        var geometries = self.geometries;
+
+        async.map(geometries, function(geometry, callback){
+            geometry.instantiate(self.model, function(threeObj) {
+                callback(null, threeObj);
+            });
+        }, function(err, result) {
+            done(result);
+        });
+    }
+
+    get geometries() {
+        return [];
     }
 
     remove() {
@@ -123,25 +145,32 @@ n3xt.Drawing = class extends n3xt.Group {
             }
         });
 
-        async.map(staleElements, this.fetchElement3D, function(err, result){
-            result.forEach(function(item) {
-                if(item.old3D) scene.remove(item.old3D);
-                item.element.threeObj = item.new3D;
-                scene.add(item.new3D);
-                item.element.status = n3xt.elementStatus.valid;
+        async.map(staleElements, this.fetchElement3D, function(err, result) {
+            result.forEach(function(info) {
+                info.forEach(function(item){
+                    if(item.old3D) scene.remove(item.old3D);
+                    item.element.threeObj = item.new3D;
+                    scene.add(item.new3D);
+                    item.element.status = n3xt.elementStatus.valid;
+                });
             });
         });
         this.updateStatus();
     }
 
-    fetchElement3D(element, done) {
-        element.fetch3D(function(threeObj){
-            threeObj.n3xtID = element.id;
-            done(null, {
-                element: element,
-                old3D: element.threeObj,
-                new3D: threeObj
+    fetchElement3D(element, callback) {
+        
+        element.fetch3D(function(threeObjs){
+            var info = [];
+            threeObjs.forEach(function(threeObj) {
+                threeObj.n3xtID = element.id;
+                info.push({
+                    element: element,
+                    old3D: element.threeObj,
+                    new3D: threeObj
+                });
             });
+            callback(null, info);
         });
     }
 
@@ -207,3 +236,208 @@ n3xt.TestElement = class extends n3xt.Element {
         done(sphere);
     }
 }
+/*****************************/
+n3xt.Material = class {
+    constructor() {
+        this.textureMapUrl = "textures/test/checkerboard.jpg";
+        this.bumpMapUrl = "";
+        this.roughness = 0.8;
+        this.color = 0xffffff;
+        this.metalness = 0.2;
+        this.bumpScale = 0.0005;
+        this.repeatX = 1;
+        this.repeatY = 1;
+    }
+
+    threeMaterial(uvScale, done) {
+        n3xt.textureMaterial(this, uvScale, done);
+    }
+}
+
+n3xt.setMaterial = function(node, map) {
+    if(node instanceof THREE.Mesh) {
+        if(map && map[node.name]) {
+            node.material = map[node.name];
+        }
+        //TODO: do this somewhere else
+        node.castShadow = true;
+    }
+    if (node.children) {
+      for (var i = 0; i < node.children.length; i++) {
+        n3xt.setMaterial(node.children[i], map);
+      }
+    }
+}
+
+n3xt.textureMaterial = function(definition, uvScale, done) {
+    var material = new THREE.MeshStandardMaterial( {
+        roughness: definition.roughness,
+        color: definition.color,
+        metalness: definition.metalness,
+        bumpScale: definition.bumpScale
+    });
+
+    var textureLoader = new THREE.TextureLoader();
+    textureLoader.load( definition.textureMapUrl, function( map ) {
+        map.wrapS = THREE.RepeatWrapping;
+        map.wrapT = THREE.RepeatWrapping;
+        map.anisotropy = 4;
+        map.repeat.set( definition.repeatX / uvScale, definition.repeatY / uvScale );
+        material.map = map;
+        material.needsUpdate = true;
+
+        if(!definition.bumpMapUrl) done(material);
+        else {
+            textureLoader.load( definition.bumpMapUrl, function( map ) {
+                map.wrapS = THREE.RepeatWrapping;
+                map.wrapT = THREE.RepeatWrapping;
+                map.anisotropy = 4;
+                map.repeat.set( definition.repeatX / uvScale, definition.repeatY / uvScale );
+                material.bumpMap = map;
+                material.needsUpdate = true;
+
+                if(!definition.roughnessMapUrl) done(material);
+                else {
+                    textureLoader.load( definition.roughnessMapUrl, function( map ) {
+                        map.wrapS = THREE.RepeatWrapping;
+                        map.wrapT = THREE.RepeatWrapping;
+                        map.anisotropy = 4;
+                        map.repeat.set( definition.repeatX / uvScale, definition.repeatY / uvScale );
+                        material.roughnessMap = map;
+                        material.needsUpdate = true;
+                        $next.materials.hardwood = floorMat;
+    
+                        done(material);
+                    });
+                }
+            });
+        }
+
+    });
+}
+/*****************************/
+n3xt.Geometry = class {
+    constructor() {
+        this.uvScale = 1;
+    }
+
+    instantiate(model, done) {
+        done(null);
+    }
+}
+
+n3xt.ExternalGeometry = class extends n3xt.Geometry {
+    constructor() {
+        super();
+        this.url = "";
+        this.materialMap = {
+            layerName: new n3xt.Material()
+        };
+    }
+
+    //use this to have different layer names here than what's in the the 3d file
+    layerAlias(friendlyName) {
+        return friendlyName;
+    }
+
+    instantiate(model, done) {
+        console.log(model, "modis");
+        var self = this;
+        self.instantiateMaterialMap(function(threeMaterialMap) {
+            self.import(self.url, function(meshes) {
+                n3xt.setMaterial(meshes, threeMaterialMap);
+                done(meshes);
+            });
+        });
+    }
+
+    instantiateMaterialMap(done) {
+        var self = this;
+        var keys = Object.keys(self.materialMap);
+        var threeMaterialMap = { };
+        async.map(keys, function(key, done) {
+            var n3xtMaterial = self.materialMap[key];
+            n3xtMaterial.threeMaterial(self.uvScale, function(threeMaterial) {
+                done(null, {
+                    key: key,
+                    threeMaterial: threeMaterial,
+                    n3xtMaterial: n3xtMaterial
+                });
+            });
+        }, function(err, materialInfo) {
+            materialInfo.forEach(function(info) {
+                threeMaterialMap[info.key] = info.threeMaterial;
+            });
+            done(threeMaterialMap);
+        });
+    }
+
+    import(fileUrl, callback) {
+        if (fileUrl.indexOf(".obj") >= 0) {
+            // instantiate a loader
+            var loader = new THREE.OBJLoader();
+    
+            // load a resource
+            loader.load(
+                // resource URL
+                fileUrl,
+                // Function when resource is loaded
+                callback
+            );
+        }
+        else if(fileUrl.indexOf(".dae") >= 0) {
+            var loader = new THREE.ColladaLoader();
+            loader.load(fileUrl, function(result) {
+                callback(result.scene);
+            });
+        } else {
+            callback(null);
+        }
+    }
+}
+/*****************************/
+var gunlocke = n3xt.namespace(gunlocke);
+
+gunlocke.TypicalZero = class extends n3xt.Element {
+    constructor(model) {
+        super(model);
+        this.name = "Gunlocke Typical Zero";
+    }
+
+    get geometries() {
+        console.log("passoqui");
+        return [
+            new gunlocke.TypicalZeroGeometry()
+        ];
+    }
+}
+
+gunlocke.TypicalZeroGeometry = class extends n3xt.ExternalGeometry {
+    constructor() {
+        super();
+        this.url = "3d/test-02-3ds.dae";
+        this.uvScale = 3.5;
+
+        var layerMap = {
+            grometBorder: " Extrusion [4678]",
+            grometLid: " Extrusion [4821]",
+            tvFrame: " Extrusion [5154]",
+            tvScreen: " Extrusion [5555]",
+            tableTop: " Joined Solid Geometry [3927]",
+            tableTray: " Extrusion [4360]"
+        };
+
+
+        this.materialMap = { };
+        this.materialMap[layerMap.tableTop] = new n3xt.Material();
+        this.materialMap[layerMap.tvFrame] = new n3xt.Material();
+        this.materialMap[layerMap.tvScreen] = new n3xt.Material();
+        this.materialMap[layerMap.grometBorder] = new n3xt.Material();
+        this.materialMap[layerMap.grometLid] = new n3xt.Material();
+    }
+}
+
+tests.push(function(engine) {
+    console.log("passokitoo");
+    engine.add(new gunlocke.TypicalZero({}));
+});
