@@ -24,8 +24,9 @@
 		<script src="js/Detector.js"></script>
 		<script src="js/loaders/ColladaLoader.js"></script>
 		<script src="js/loaders/OBJLoader.js"></script>
-		<script src="/next/next.js"></script>
-    
+		<script src="/n3xt-build.js"></script>
+		<script src="test.js"></script>
+		
 
 		<script>
 
@@ -60,6 +61,8 @@
 
 			var clock = new THREE.Clock();
 
+			var engine = null;
+
 			init();
 			animate();
 
@@ -73,6 +76,8 @@
 				camera.position.y = 4;
 
 				scene = new THREE.Scene();
+				engine = n3xt(scene);
+				test(engine);
 
 				scene.background = new THREE.Color( 0xaaaaaa );
 				bulbLight = new THREE.PointLight( 0xffee88, 1, 100, 2 );
@@ -101,7 +106,6 @@
 				renderer.gammaInput = true;
 				renderer.gammaOutput = true;
 				renderer.toneMapping = THREE.ReinhardToneMapping;
-				$next.init(scene, camera, renderer);
 				var controls = new THREE.OrbitControls( camera, renderer.domElement );
 				window.addEventListener( 'resize', onWindowResize, false );
 
@@ -129,7 +133,7 @@
 
 			function animate() {
 				requestAnimationFrame( animate );
-				$next.animate();
+				engine.animate();
 				render();
 			}
 
@@ -153,6 +157,8 @@
 			}
 
 		</script>
+
+
 
 	</body>
 </html>
