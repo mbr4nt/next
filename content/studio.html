@@ -73,7 +73,6 @@
 			init();
 			animate();
 
-
 			function createProps(studio, expand) {
 				gui = new dat.GUI();
 
@@ -110,9 +109,12 @@
 				layerKeys.forEach(function(layerKey) {
 					var layer = studio.model.layers[layerKey];
 					var layerGui = gui.addFolder(layer.name);
-					layerGui.add(layer, "alias");
-					layerGui.addColor(layer, "color");
-					layerGui.add(layer, "on");
+					layerGui.add(layer, "alias").onChange(function(value) {
+						studio.invalidate();
+					});
+					layerGui.add(layer, "on").onChange(function(value) {
+						studio.invalidate();
+					});
 				});
 				
 
@@ -142,7 +144,7 @@
 				
 				var studio = new n3xt.Studio();
 				studio.loadedGeometry = function(geo) {
-					createProps(studio);
+					 if(!gui)  createProps(studio);
 				};
 				engine.add(studio);
 
