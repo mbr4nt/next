@@ -2,7 +2,7 @@ n3xt.Studio = class extends n3xt.Element {
     constructor(model={
         url: "3d/test-02-3ds.dae",
         uvScale: 1,
-        layers: []
+        layers: null
     }) { 
         super(model); 
         this.loadedGeometry = function(geo) {
@@ -14,6 +14,7 @@ n3xt.Studio = class extends n3xt.Element {
         var self = this;
         if(!self.model.url) return [];
         var geo = new n3xt.ExternalGeometry();
+        geo.layers = self.model.layers;
         geo.url = self.model.url;
         geo.uvScale = self.model.uvScale;
         geo.loaded = function(geo, threeObj) {

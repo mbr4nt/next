@@ -23,7 +23,6 @@ n3xt.CheckerboardMaterial = class extends n3xt.Material {
 }
 
 n3xt.setMaterial = function(node, main, map) {
-    node.material = main;
     if(node instanceof THREE.Mesh) {
         if(map && map[node.name]) {
             node.material = map[node.name];

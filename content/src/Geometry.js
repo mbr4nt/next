@@ -12,7 +12,7 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
     constructor() {
         super();
         this.url = "";
-        this.layers = {};
+        this.layers = null;
         this.loaded = function(geo, threeObj) { };
         this.mainMaterial = new n3xt.CheckerboardMaterial();
         this.materialMap = {
@@ -26,24 +26,32 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
     }
 
     instantiate(model, done) {
-        console.log(model, "modis");
         var self = this;
         self.mainMaterial.threeMaterial(self.uvScale, function(threeMaterial){
             self.import(self.url, function(meshes) {
-                self.layers = {};
+                if(self.layers == null) {
+                    self.layers = {};
+                    meshes.traverse(function(obj){
+                        if(obj instanceof THREE.Mesh) {
+                            var layerInfo = {
+                                name: obj.name,
+                                alias: obj.name,
+                                on: true
+                            };
+                            self.layers[layerInfo.name] = layerInfo;
+                        }
+                    });
+                }
+
                 self.materialMap = {};
-                meshes.traverse(function(obj){
-                    if(obj instanceof THREE.Mesh) {
-                        var layerInfo = {
-                            name: obj.name,
-                            alias: obj.name,
-                            color: self.getRandomColor(),
-                            on: true
-                        };
-                        self.layers[layerInfo.name] = layerInfo;
-                        self.materialMap[layerInfo.name] = new n3xt.CheckerboardMaterial(layerInfo.color);
+                var layerKeys = Object.keys(self.layers);
+                layerKeys.forEach(function(layerKey) {
+                    var layer = self.layers[layerKey];
+                    if(layer && layer.on) {
+                        self.materialMap[layer.name] = new n3xt.CheckerboardMaterial(self.aliasToColor(layer.alias));
                     }
                 });
+
                 self.instantiateMaterialMap(function(threeMaterialMap) {
                     n3xt.setMaterial(meshes, threeMaterial, threeMaterialMap);
                     if(self.loaded) self.loaded(self, meshes);
@@ -60,6 +68,23 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
           color += letters[Math.floor(Math.random() * 16)];
         }
         return parseInt(color, 16);
+    }
+
+    hashCode(str) { // java String#hashCode
+        var hash = 0;
+        for (var i = 0; i < str.length; i++) {
+           hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return hash;
+    } 
+    
+    aliasToColor(alias){
+        var i = this.hashCode(alias);
+        var c = (i & 0x00FFFFFF)
+            .toString(16)
+            .toUpperCase();
+    
+        return parseInt("00000".substring(0, 6 - c.length) + c, 16);
     }
 
     instantiateMaterialMap(done) {
