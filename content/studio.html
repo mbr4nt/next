@@ -77,8 +77,10 @@
 			function createProps(studio, expand) {
 				gui = new dat.GUI();
 
-				gui.add( studio.model, 'url' );
-				gui.add( studio.model, 'uvScale', minUv, maxUv).onChange(function(value) {
+				var global = gui.addFolder("Global");
+
+				global.add( studio.model, 'url' );
+				global.add( studio.model, 'uvScale', minUv, maxUv).onChange(function(value) {
 					studio.invalidate();
 				});
 
@@ -91,7 +93,7 @@
 						factor = 10;
 						createProps(studio, true);
 					}};
-					gui.add(obj,'refine');
+					global.add(obj,'refine');
 				} else {
 					var obj = { expand:function(){ 
 						gui.destroy();
@@ -101,12 +103,23 @@
 						factor = 1.2;
 						createProps(studio, false);
 					}};
-					gui.add(obj,'expand');
+					global.add(obj,'expand');
 				}
+
+				var layerKeys = Object.keys(studio.model.layers);
+				layerKeys.forEach(function(layerKey) {
+					var layer = studio.model.layers[layerKey];
+					var layerGui = gui.addFolder(layer.name);
+					layerGui.add(layer, "alias");
+					layerGui.addColor(layer, "color");
+					layerGui.add(layer, "on");
+				});
 				
 
-				gui.open();
+				global.open();
 			}
+
+			
 
 			function init() {
 				
@@ -128,8 +141,10 @@
 				engine.add(new n3xt.StudioFloor());
 				
 				var studio = new n3xt.Studio();
+				studio.loadedGeometry = function(geo) {
+					createProps(studio);
+				};
 				engine.add(studio);
-				createProps(studio);
 
 				bulbMat = new THREE.MeshStandardMaterial( {
 					emissive: 0xffffee,

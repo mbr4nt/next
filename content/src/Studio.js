@@ -1,14 +1,25 @@
 n3xt.Studio = class extends n3xt.Element {
     constructor(model={
         url: "3d/test-02-3ds.dae",
-        uvScale: 1
-    }) { super(model); }
+        uvScale: 1,
+        layers: []
+    }) { 
+        super(model); 
+        this.loadedGeometry = function(geo) {
+
+        };
+    }
 
     get geometries() {
-        if(!this.model.url) return [];
+        var self = this;
+        if(!self.model.url) return [];
         var geo = new n3xt.ExternalGeometry();
-        geo.url = this.model.url;
-        geo.uvScale = this.model.uvScale;
+        geo.url = self.model.url;
+        geo.uvScale = self.model.uvScale;
+        geo.loaded = function(geo, threeObj) {
+            self.model.layers = geo.layers;
+            if(self.loadedGeometry) self.loadedGeometry(geo);
+        };
         return [geo];
     }
 }

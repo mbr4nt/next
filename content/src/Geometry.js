@@ -12,6 +12,8 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
     constructor() {
         super();
         this.url = "";
+        this.layers = {};
+        this.loaded = function(geo, threeObj) { };
         this.mainMaterial = new n3xt.CheckerboardMaterial();
         this.materialMap = {
             layerName: new n3xt.CheckerboardMaterial()
@@ -27,13 +29,37 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
         console.log(model, "modis");
         var self = this;
         self.mainMaterial.threeMaterial(self.uvScale, function(threeMaterial){
-            self.instantiateMaterialMap(function(threeMaterialMap) {
-                self.import(self.url, function(meshes) {
+            self.import(self.url, function(meshes) {
+                self.layers = {};
+                self.materialMap = {};
+                meshes.traverse(function(obj){
+                    if(obj instanceof THREE.Mesh) {
+                        var layerInfo = {
+                            name: obj.name,
+                            alias: obj.name,
+                            color: self.getRandomColor(),
+                            on: true
+                        };
+                        self.layers[layerInfo.name] = layerInfo;
+                        self.materialMap[layerInfo.name] = new n3xt.CheckerboardMaterial(layerInfo.color);
+                    }
+                });
+                self.instantiateMaterialMap(function(threeMaterialMap) {
                     n3xt.setMaterial(meshes, threeMaterial, threeMaterialMap);
+                    if(self.loaded) self.loaded(self, meshes);
                     done(meshes);
                 });
             });
         });
+    }
+
+    getRandomColor() {
+        var letters = '0123456789ABCDEF';
+        var color = '0x';
+        for (var i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return parseInt(color, 16);
     }
 
     instantiateMaterialMap(done) {
