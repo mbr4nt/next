@@ -19,6 +19,7 @@ module.exports = function(grunt) {
                     'content/src/Material.js',
                     'content/src/textureMaterial.js',
                     'content/src/Geometry.js',
+                    'content/src/Studio.js',
                     'content/src/Gunlocke/TypicalZero.js'
                 ],
                 dest: 'content/n3xt-build.js',

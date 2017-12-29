@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - lights - physical lights</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				background-color: #000;
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="container"></div>
+
+		<script src="/build/three.js"></script>
+		<script src="js/libs/stats.min.js"></script>
+		<script src="js/libs/dat.gui.min.js"></script>
+		<script src="js/controls/OrbitControls.js"></script>
+		<script src="js/controls/TransformControls.js"></script>
+		<script src="js/Detector.js"></script>
+		<script src="js/loaders/ColladaLoader.js"></script>
+		<script src="js/loaders/OBJLoader.js"></script>
+		<script src="/n3xt-build.js"></script>
+		<script src="test.js"></script>
+		
+
+		<script>
+
+			
+
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var camera, scene, renderer,
+			bulbLight, bulbMat, hemiLight,
+			object, loader, stats;
+			var ballMat, cubeMat, floorMat;
+
+
+			// ref for lumens: http://www.power-sure.com/lumens.htm
+			var bulbLuminousPowers = {
+				"Bright": 110000,
+				"Dark": 35000
+			};
+
+			// ref for solar irradiances: https://en.wikipedia.org/wiki/Lux
+			var hemiLuminousIrradiances = {
+				"Bright": 350,
+				"Dark": 50,
+			};
+
+			var params = {
+				shadows: true,
+				spotlight: true,
+				exposure: 0.47,
+				bulbPower: Object.keys( bulbLuminousPowers )[ 0 ],
+				hemiIrradiance: Object.keys( hemiLuminousIrradiances )[0]
+			};
+
+
+			var clock = new THREE.Clock();
+
+			var engine = null;
+
+			var minUv = 0.1;
+			var maxUv = 10;
+			var factor = 1.2;
+			var gui = null;
+
+			init();
+			animate();
+
+
+			function createProps(studio, expand) {
+				gui = new dat.GUI();
+
+				gui.add( studio.model, 'url' );
+				gui.add( studio.model, 'uvScale', minUv, maxUv).onChange(function(value) {
+					studio.invalidate();
+				});
+
+				if(!expand) {
+					var obj = { refine:function(){ 
+						gui.destroy();
+						
+						minUv = studio.model.uvScale / factor;
+						maxUv = studio.model.uvScale * factor;
+						factor = 10;
+						createProps(studio, true);
+					}};
+					gui.add(obj,'refine');
+				} else {
+					var obj = { expand:function(){ 
+						gui.destroy();
+						
+						minUv = studio.model.uvScale / factor;
+						maxUv = studio.model.uvScale * factor;
+						factor = 1.2;
+						createProps(studio, false);
+					}};
+					gui.add(obj,'expand');
+				}
+				
+
+				gui.open();
+			}
+
+			function init() {
+				
+				var container = document.getElementById( 'container' );
+				
+				camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
+				camera.position.x = 5;
+				camera.position.z = -3;
+				camera.position.y = 4;
+
+				scene = new THREE.Scene();
+				engine = n3xt(scene);
+				
+
+				scene.background = new THREE.Color( 0xaaaaaa );
+				bulbLight = new THREE.PointLight( 0xffee88, 1, 100, 2 );
+				
+				//floor
+				engine.add(new n3xt.StudioFloor());
+				
+				var studio = new n3xt.Studio();
+				engine.add(studio);
+				createProps(studio);
+
+				bulbMat = new THREE.MeshStandardMaterial( {
+					emissive: 0xffffee,
+					emissiveIntensity: 1,
+					color: 0x000000
+				});
+				bulbLight.position.set( 1, 4, 0 );
+				bulbLight.castShadow = true;
+				scene.add( bulbLight );
+				
+				hemiLight = new THREE.HemisphereLight( 0xddeeff, 0x0f0e0d, 0.02 );
+				scene.add( hemiLight );
+				
+				
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.shadowMap.enabled = true;
+				container.appendChild( renderer.domElement );
+				
+				renderer.physicallyCorrectLights = true;
+				renderer.gammaInput = true;
+				renderer.gammaOutput = true;
+				renderer.toneMapping = THREE.ReinhardToneMapping;
+				var controls = new THREE.OrbitControls( camera, renderer.domElement );
+				window.addEventListener( 'resize', onWindowResize, false );
+
+
+			}
+
+			
+
+			
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			//
+
+			function animate() {
+				requestAnimationFrame( animate );
+				engine.animate();
+				render();
+			}
+
+			var previousShadowMap = false;
+			function render() {
+
+				renderer.toneMappingExposure = Math.pow( params.exposure, 5.0 ); // to allow for very bright scenes.
+				renderer.shadowMap.enabled = params.shadows;
+				bulbLight.castShadow = params.shadows;
+				if( params.shadows !== previousShadowMap ) {
+				
+					previousShadowMap = params.shadows;
+				}
+				bulbLight.power = params.spotlight ? bulbLuminousPowers[ params.hemiIrradiance ] : 0;
+				bulbMat.emissiveIntensity = bulbLight.intensity / Math.pow( 0.02, 2.0 ); // convert from intensity to irradiance at bulb surface
+
+				hemiLight.intensity = hemiLuminousIrradiances[ params.hemiIrradiance ];
+
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+
+
+
+	</body>
+</html>

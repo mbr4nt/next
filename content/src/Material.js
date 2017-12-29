@@ -15,7 +15,15 @@ n3xt.Material = class {
     }
 }
 
-n3xt.setMaterial = function(node, map) {
+n3xt.CheckerboardMaterial = class extends n3xt.Material {
+    constructor(color=0xffffff) {
+        super();
+        this.color = color;
+    }
+}
+
+n3xt.setMaterial = function(node, main, map) {
+    node.material = main;
     if(node instanceof THREE.Mesh) {
         if(map && map[node.name]) {
             node.material = map[node.name];
@@ -25,7 +33,7 @@ n3xt.setMaterial = function(node, map) {
     }
     if (node.children) {
       for (var i = 0; i < node.children.length; i++) {
-        n3xt.setMaterial(node.children[i], map);
+        n3xt.setMaterial(node.children[i], main, map);
       }
     }
 }

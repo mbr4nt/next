@@ -12,8 +12,9 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
     constructor() {
         super();
         this.url = "";
+        this.mainMaterial = new n3xt.CheckerboardMaterial();
         this.materialMap = {
-            layerName: new n3xt.Material()
+            layerName: new n3xt.CheckerboardMaterial()
         };
     }
 
@@ -25,10 +26,12 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
     instantiate(model, done) {
         console.log(model, "modis");
         var self = this;
-        self.instantiateMaterialMap(function(threeMaterialMap) {
-            self.import(self.url, function(meshes) {
-                n3xt.setMaterial(meshes, threeMaterialMap);
-                done(meshes);
+        self.mainMaterial.threeMaterial(self.uvScale, function(threeMaterial){
+            self.instantiateMaterialMap(function(threeMaterialMap) {
+                self.import(self.url, function(meshes) {
+                    n3xt.setMaterial(meshes, threeMaterial, threeMaterialMap);
+                    done(meshes);
+                });
             });
         });
     }
@@ -72,8 +75,23 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
             loader.load(fileUrl, function(result) {
                 callback(result.scene);
             });
+        } else if(fileUrl.indexOf(".fbx") >= 0) {
+            var manager = new THREE.LoadingManager();
+            var loader = new THREE.FBXLoader(manager);
+            loader.load(fileUrl, function (geometry) {
+                console.log("volto");
+                var material = new THREE.MeshNormalMaterial()
+                var mesh = new THREE.Mesh(geometry, material)
+                callback(mesh);
+            });
+        } else if(fileUrl.indexOf(".dxf") >= 0) {
+            var loader = new DXFLoader(THREE);
+            loader.load(fileUrl, function (geometry) {
+                callback(geometry);
+            });
         } else {
             callback(null);
         }
     }
 }
+

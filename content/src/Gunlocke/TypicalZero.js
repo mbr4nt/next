@@ -7,7 +7,6 @@ gunlocke.TypicalZero = class extends n3xt.Element {
     }
 
     get geometries() {
-        console.log("passoqui");
         return [
             new gunlocke.TypicalZeroGeometry()
         ];
@@ -40,6 +39,5 @@ gunlocke.TypicalZeroGeometry = class extends n3xt.ExternalGeometry {
 }
 
 tests.push(function(engine) {
-    console.log("passokitoo");
     engine.add(new gunlocke.TypicalZero({}));
 });
