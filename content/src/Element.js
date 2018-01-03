@@ -6,6 +6,8 @@ n3xt.Element = class {
         this.group = null;
         this.status = n3xt.elementStatus.stale; 
         this.name = "Generic Element";
+        //keeps reference for THREE.js objects which are currently in the scene and have come from this
+        this.threeObjs = [];
     }
 
 

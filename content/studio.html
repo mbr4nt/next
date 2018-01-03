@@ -105,6 +105,30 @@
 					global.add(obj,'expand');
 				}
 
+				global.add({save: function() { 
+					var data = {};
+					data.url = studio.model.url;
+					data.uvScale = studio.model.uvScale;
+
+					var layerMap = {};
+
+					var layerKeys = Object.keys(studio.model.layers);
+					layerKeys.forEach(function(layerKey) {
+						var layer = studio.model.layers[layerKey];
+						if(layer.on) {
+							if(!layerMap[layer.alias]) {
+								layerMap[layer.alias] = [];
+							}
+							layerMap[layer.alias].push(layer.name);
+						}
+					});
+
+					data.layerMap = layerMap;
+
+					console.log(JSON.stringify(data));
+
+				} }, "save");
+
 				var layerKeys = Object.keys(studio.model.layers);
 				layerKeys.forEach(function(layerKey) {
 					var layer = studio.model.layers[layerKey];

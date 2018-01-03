@@ -20,23 +20,20 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
         };
     }
 
-    //use this to have different layer names here than what's in the the 3d file
-    layerAlias(friendlyName) {
-        return friendlyName;
-    }
-
     instantiate(model, done) {
         var self = this;
         self.mainMaterial.threeMaterial(self.uvScale, function(threeMaterial){
             self.import(self.url, function(meshes) {
                 if(self.layers == null) {
                     self.layers = {};
+                    console.log(meshes);
                     meshes.traverse(function(obj){
+                        console.log(obj);
                         if(obj instanceof THREE.Mesh) {
                             var layerInfo = {
                                 name: obj.name,
                                 alias: obj.name,
-                                on: true
+                                on: false
                             };
                             self.layers[layerInfo.name] = layerInfo;
                         }
@@ -53,6 +50,7 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
                 });
 
                 self.instantiateMaterialMap(function(threeMaterialMap) {
+                    console.log(threeMaterialMap);
                     n3xt.setMaterial(meshes, threeMaterial, threeMaterialMap);
                     if(self.loaded) self.loaded(self, meshes);
                     done(meshes);
@@ -89,6 +87,7 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
 
     instantiateMaterialMap(done) {
         var self = this;
+        console.log(self.materialMap, "map");
         var keys = Object.keys(self.materialMap);
         var threeMaterialMap = { };
         async.map(keys, function(key, done) {
@@ -143,6 +142,52 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
         } else {
             callback(null);
         }
+    }
+}
+
+n3xt.StudioGeometry = class extends n3xt.ExternalGeometry {
+    constructor(materialMap) {
+        super();
+        var self = this;
+        
+        var studioData = this.studioData;
+        
+        this.url = studioData.url;
+        this.uvScale = studioData.uvScale;
+        this.layerMap = studioData.layerMap;
+
+        this.materialMap = self.translatedMaterialMap(materialMap);
+    }
+
+    get studioData() {
+        return null;
+    }
+
+    translatedMaterialMap(materialMap) {
+        var translatedMaterialMap = {};
+        var self = this;
+        var layerAliases = Object.keys(self.layerMap);
+        layerAliases.forEach(function(layerAlias){
+            var layerNames = self.layerMap[layerAlias];
+            var material = materialMap[layerAlias];
+            layerNames.forEach(function(layerName){
+                translatedMaterialMap[layerName] = material;
+            });
+        });
+        return translatedMaterialMap;
+    }
+
+
+    instantiate(model, done) {
+        var self = this;
+        self.import(self.url, function(meshes) {
+            self.instantiateMaterialMap(function(threeMaterialMap) {
+                console.log(threeMaterialMap);
+                n3xt.setMaterial(meshes, null, threeMaterialMap);
+                if(self.loaded) self.loaded(self, meshes);
+                done(meshes);
+            });
+        });
     }
 }
 

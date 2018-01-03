@@ -6,15 +6,104 @@
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
 			body {
-				background-color: #000;
 				margin: 0px;
 				overflow: hidden;
+				background-color: #E1DED9;
 			}
+			div { float: left; }
+
+			div#container { width: 75%; }
+			div#props { 
+				width: 25%;
+
+				color: #343636;
+				font-family: "Helvetica LT Pro",Helvetica,Arial,sans-serif;
+				font-size: 1.25rem;
+				font-weight: 400;
+				Line-height: 32px;
+				margin: 0 0 1em;
+				text-transform: none; 
+			}
+
+			h3 {
+				padding-left:20px;
+			}
+
+			li img {
+				width:30px;
+				height: 30px;
+			}
+
+			ul {
+				list-style-type: none;
+			}
+
+			div img {
+				width: 100px;
+				height: 100px;
+			}
+
+			.options {
+				margin-left:20px;
+			}
+
+			.selection {
+				margin-right:20px;
+				padding: 5px;	
+				cursor: pointer;			
+			}
+
+			.selection.selected {
+				border: 2px solid #B83D26;
+				cursor: default;
+			}
+
+			.selection div {
+				float:none;
+			}
+
+			
 		</style>
 	</head>
 	<body>
 
 		<div id="container"></div>
+		<div id="props">
+			<div>
+				<h3>Wood Finish</h3>
+				<div class="options">
+					<div class="selection" id="woodFinish.dark"  onclick="select('woodFinish', 'dark');">
+						<div><img src="textures/dark-wood.jpg" /></div>
+						<div>Dark</div>
+					</div>
+					<div class="selection" id="woodFinish.light" onclick="select('woodFinish', 'light');">
+						<div><img src="textures/light-wood.jpg" /></div>
+						<div>Light</div>
+					</div>
+				</div>
+			</div>
+
+			<div>
+				<h3>Table Finish</h3>
+				<div class="options">
+					<div id="tableFinish.dark" class="selection" onclick="select('tableFinish', 'dark');">
+						<div><img src="textures/dark-wood.jpg" /></div>
+						<div>Dark</div>
+					</div>
+					<div id="tableFinish.light" class="selection" onclick="select('tableFinish', 'light');">
+						<div><img src="textures/light-wood.jpg" /></div>
+						<div>Light</div>
+					</div>
+				</div>
+			</div>
+
+			<video id="video" autoplay loop webkit-playsinline muted style="display:none"> 
+				<source src="textures/video.mp4" type="video/mp4"> 
+			</video>
+
+		</div>
+
+		
 
 		<script src="/build/three.js"></script>
 		<script src="js/libs/stats.min.js"></script>
@@ -26,6 +115,35 @@
 		<script src="js/loaders/OBJLoader.js"></script>
 		<script src="/n3xt-build.js"></script>
 		<script src="test.js"></script>
+
+		<script>
+			var pln = console.log;
+
+			var element = new gunlocke.TypicalZero();
+
+			function select(optionName, optionValue) {
+				element.model[optionName] = optionValue;
+				element.invalidate();
+				highlightSelections();
+				
+			}
+			
+			function highlightSelections() {
+				document.querySelectorAll(".selection").forEach(function(obj){
+					obj.style.border = "1px solid #9c9182";
+				});
+				var keys = Object.keys(element.model);
+				keys.forEach(function(key){
+					var value = element.model[key];
+					var id = key + "." + value;
+					var htmlObj = document.getElementById(id);
+					if(htmlObj) {
+						htmlObj.style.border = "1px solid #B83D26";
+					}
+
+				});
+			}
+		</script>
 		
 
 		<script>
@@ -34,36 +152,9 @@
 
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
-			var camera, scene, renderer,
-			bulbLight, bulbMat, hemiLight,
-			object, loader, stats;
-			var ballMat, cubeMat, floorMat;
+			var camera, scene, renderer, controls;
 
-
-			// ref for lumens: http://www.power-sure.com/lumens.htm
-			var bulbLuminousPowers = {
-				"Bright": 110000,
-				"Dark": 35000
-			};
-
-			// ref for solar irradiances: https://en.wikipedia.org/wiki/Lux
-			var hemiLuminousIrradiances = {
-				"Bright": 350,
-				"Dark": 50,
-			};
-
-			var params = {
-				shadows: true,
-				spotlight: true,
-				exposure: 0.47,
-				bulbPower: Object.keys( bulbLuminousPowers )[ 0 ],
-				hemiIrradiance: Object.keys( hemiLuminousIrradiances )[0]
-			};
-
-
-			var clock = new THREE.Clock();
-
-			var engine = null;
+				var engine = null;
 
 			init();
 			animate();
@@ -72,64 +163,73 @@
 
 				var container = document.getElementById( 'container' );
 
-				camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
-				camera.position.x = 5;
-				camera.position.z = -3;
-				camera.position.y = 4;
+				camera = new THREE.PerspectiveCamera( 50, window.innerWidth * 0.75 / window.innerHeight, 0.1, 100 );
+				camera.position.x = 4.35;
+				camera.position.y = 3.22;
+				camera.position.z = 0;
 
 				scene = new THREE.Scene();
 				engine = n3xt(scene);
-				tests.forEach(function(test){
-					test(engine);
-				});
+				engine.add(element);
 
-				scene.background = new THREE.Color( 0xaaaaaa );
-				bulbLight = new THREE.PointLight( 0xffee88, 1, 100, 2 );
+				scene.background = new THREE.Color( 0xE1DED9 );
 
-				bulbMat = new THREE.MeshStandardMaterial( {
-					emissive: 0xffffee,
-					emissiveIntensity: 1,
-					color: 0x000000
-				});
-				bulbLight.position.set( 1, 4, 0 );
-				bulbLight.castShadow = true;
-				scene.add( bulbLight );
-				
-				hemiLight = new THREE.HemisphereLight( 0xddeeff, 0x0f0e0d, 0.02 );
-				scene.add( hemiLight );
-				
-				
+				//Floor
+				var planeGeometry = new THREE.PlaneGeometry( 2000, 2000 );
+				planeGeometry.rotateX( - Math.PI / 2 );
+				var planeMaterial = new THREE.ShadowMaterial( { opacity: 0.05 } );
+				// var planeMaterial = new THREE.MeshPhongMaterial( { color: 0xcccccc } );
+
+				var plane = new THREE.Mesh( planeGeometry, planeMaterial );
+				plane.receiveShadow = true;
+				scene.add( plane );
+
+				//Grid
+				var helper = new THREE.GridHelper( 200, 1000 );
+				// helper.material.opacity = 1;
+				// helper.material.transparent = true;
+				scene.add( helper );
+
+				//Lights
+				scene.add( new THREE.AmbientLight( 0xf0f0f0 ) );
+				var light = new THREE.SpotLight( 0xffffff, 1 );
+				light.position.set( 2, 10, 0 );
+				light.castShadow = true;
+				// light.shadow = new THREE.LightShadow( new THREE.PerspectiveCamera( 70, 1, 200, 2000 ) );
+				// light.shadow.bias = -0.000222;
+				light.shadow.mapSize.width = 1024 * 4;
+				light.shadow.mapSize.height = 1024 * 4;
+				scene.add( light );
+				spotlight = light;
 
 				renderer = new THREE.WebGLRenderer( { antialias: true } );
 				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setSize( window.innerWidth * 0.75, window.innerHeight );
+				// renderer.setSize( container.clientWidth, container.clientHeight );
 				renderer.shadowMap.enabled = true;
 				container.appendChild( renderer.domElement );
 				
 				renderer.physicallyCorrectLights = true;
-				renderer.gammaInput = true;
+				// renderer.gammaInput = true;
 				renderer.gammaOutput = true;
-				renderer.toneMapping = THREE.ReinhardToneMapping;
-				var controls = new THREE.OrbitControls( camera, renderer.domElement );
+				// renderer.toneMapping = THREE.ReinhardToneMapping;
+				renderer.shadowMap.enabled = true;
+				controls = new THREE.OrbitControls( camera, renderer.domElement );
+				controls.maxPolarAngle = Math.PI / 2;
 				window.addEventListener( 'resize', onWindowResize, false );
 
 
-				var gui = new dat.GUI();
-
-				gui.add( params, 'hemiIrradiance', Object.keys( hemiLuminousIrradiances ) ).name("Lighting");
-				// gui.add( params, 'bulbPower', Object.keys( bulbLuminousPowers ) );
-				// gui.add( params, 'exposure', 0, 1 );
-				gui.add( params, 'shadows' ).name("Shadows");
-				gui.add( params, 'spotlight' ).name("Spotlight");
-				gui.open();
+				
 			}
 
 			function onWindowResize() {
 
-				camera.aspect = window.innerWidth / window.innerHeight;
+				// camera.aspect = window.innerWidth / window.innerHeight;
+				camera.aspect = container.clientWidth / container.clientHeight;
 				camera.updateProjectionMatrix();
 
-				renderer.setSize( window.innerWidth, window.innerHeight );
+				// renderer.setSize( window.innerWidth, window.innerHeight );
+				renderer.setSize( container.clientWidth, container.clientHeight );
 
 			}
 
@@ -144,22 +244,11 @@
 			var previousShadowMap = false;
 			function render() {
 
-				renderer.toneMappingExposure = Math.pow( params.exposure, 5.0 ); // to allow for very bright scenes.
-				renderer.shadowMap.enabled = params.shadows;
-				bulbLight.castShadow = params.shadows;
-				if( params.shadows !== previousShadowMap ) {
-				
-					previousShadowMap = params.shadows;
-				}
-				bulbLight.power = params.spotlight ? bulbLuminousPowers[ params.hemiIrradiance ] : 0;
-				bulbMat.emissiveIntensity = bulbLight.intensity / Math.pow( 0.02, 2.0 ); // convert from intensity to irradiance at bulb surface
-
-				hemiLight.intensity = hemiLuminousIrradiances[ params.hemiIrradiance ];
-
 				renderer.render( scene, camera );
 
 			}
 
+			highlightSelections();
 		</script>
 
 

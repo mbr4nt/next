@@ -1,6 +1,6 @@
 n3xt.Studio = class extends n3xt.Element {
     constructor(model={
-        url: "3d/test-02-3ds.dae",
+        url: "3d/test-materials-rvt-collada.dae",
         uvScale: 1,
         layers: null
     }) { 

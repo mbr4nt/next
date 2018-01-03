@@ -8,7 +8,10 @@ n3xt.Drawing = class extends n3xt.Group {
     }
 
     updateScene() {
+        var self = this;
         var staleElements = [];
+
+        var killList = [];
 
         var index = this.index;
         var scene = this.scene;
@@ -17,17 +20,25 @@ n3xt.Drawing = class extends n3xt.Group {
             var element = index[id];
             if(element) {
                 staleElements.push(element);
+                //cleanup old 3d
+                element.threeObjs.forEach(function(oldObj){
+                    killList.push(oldObj);
+                });
             }
         });
 
         async.map(staleElements, this.fetchElement3D, function(err, result) {
             result.forEach(function(info) {
                 info.forEach(function(item){
-                    if(item.old3D) scene.remove(item.old3D);
-                    item.element.threeObj = item.new3D;
+                    item.element.threeObjs.push(item.new3D);
+                    self.copyPosition(item.element, item.new3D);
                     scene.add(item.new3D);
                     item.element.status = n3xt.elementStatus.valid;
                 });
+            });
+
+            killList.forEach(function(oldObj){
+                scene.remove(oldObj);
             });
         });
         this.updateStatus();
@@ -41,7 +52,6 @@ n3xt.Drawing = class extends n3xt.Group {
                 threeObj.n3xtID = element.id;
                 info.push({
                     element: element,
-                    old3D: element.threeObj,
                     new3D: threeObj
                 });
             });
@@ -95,5 +105,12 @@ n3xt.Drawing = class extends n3xt.Group {
 
     onRemoved(element) {
         this.removeFromStalePool(element);
+    }
+
+    copyPosition(fromElement, toThreeObj) {
+        toThreeObj.position.x += fromElement.position.x;
+        toThreeObj.position.y += fromElement.position.y;
+        toThreeObj.position.z += fromElement.position.z;
+        toThreeObj.rotateY(fromElement.position.yaw);
     }
 }

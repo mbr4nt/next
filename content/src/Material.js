@@ -8,10 +8,12 @@ n3xt.Material = class {
         this.bumpScale = 0.0005;
         this.repeatX = 1;
         this.repeatY = 1;
+        this.uvScale = 1
     }
 
-    threeMaterial(uvScale, done) {
-        n3xt.textureMaterial(this, uvScale, done);
+    threeMaterial(geometryScale, done) {
+        var materialScale = this.uvScale;
+        n3xt.textureMaterial(this, materialScale * geometryScale, done);
     }
 }
 
@@ -24,11 +26,11 @@ n3xt.CheckerboardMaterial = class extends n3xt.Material {
 
 n3xt.setMaterial = function(node, main, map) {
     if(node instanceof THREE.Mesh) {
+        //TODO: do this somewhere else
+        node.castShadow = true;
         if(map && map[node.name]) {
             node.material = map[node.name];
         }
-        //TODO: do this somewhere else
-        node.castShadow = true;
     }
     if (node.children) {
       for (var i = 0; i < node.children.length; i++) {
@@ -83,3 +85,15 @@ n3xt.textureMaterial = function(definition, uvScale, done) {
 
     });
 }
+
+n3xt.PlainMaterial = class extends n3xt.Material {
+    constructor(color) {
+        super();
+        this.color = color;
+    }
+
+    threeMaterial(uvScale, done) {
+        done(new THREE.MeshPhongMaterial({color: this.color}));
+    }
+}
+

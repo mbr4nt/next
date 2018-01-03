@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Gunlocke Typical</title>
+        <style>
+            html {
+                background-color: #363636;
+                margin: 0;
+                padding: 0;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+            }
+
+            img {
+                height: 40px;
+                padding: 20px;
+            }
+
+            #header{
+                height:25%;
+            } 
+
+            #content{
+                height:75%;
+            } 
+        </style>
+    </head>
+
+    <body>
+        <div id="header">
+            <img src="https://www.gunlocke.com/sites/gunlocke.com/themes/gunlocke_theme/logo.svg" alt="Gunlocke-Office Furniture-Wood Casegoods-Desking-Seating-Conferencing"  />
+        </div>
+        <div id="content" >
+            <iframe src="index.html" id="myIframe" scrolling="no" frameborder="0"
+            style="position: relative; height: 100%; width: 100%;">
+        </div>        
+    </iframe>
+    <script>
+        document.addEventListener('DOMContentLoaded', function(){
+            document.getElementById("content").style.height = (window.innerHeight - 80) + "px";
+            console.log("tony");
+        }, false);
+    </script>
+    </body>
+</html>
