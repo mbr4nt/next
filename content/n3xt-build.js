@@ -47,6 +47,8 @@ n3xt.Element = class {
         this.group = null;
         this.status = n3xt.elementStatus.stale; 
         this.name = "Generic Element";
+        //keeps reference for THREE.js objects which are currently in the scene and have come from this
+        this.threeObjs = [];
     }
 
 
@@ -133,7 +135,10 @@ n3xt.Drawing = class extends n3xt.Group {
     }
 
     updateScene() {
+        var self = this;
         var staleElements = [];
+
+        var killList = [];
 
         var index = this.index;
         var scene = this.scene;
@@ -142,17 +147,25 @@ n3xt.Drawing = class extends n3xt.Group {
             var element = index[id];
             if(element) {
                 staleElements.push(element);
+                //cleanup old 3d
+                element.threeObjs.forEach(function(oldObj){
+                    killList.push(oldObj);
+                });
             }
         });
 
         async.map(staleElements, this.fetchElement3D, function(err, result) {
             result.forEach(function(info) {
                 info.forEach(function(item){
-                    if(item.old3D) scene.remove(item.old3D);
-                    item.element.threeObj = item.new3D;
+                    item.element.threeObjs.push(item.new3D);
+                    self.copyPosition(item.element, item.new3D);
                     scene.add(item.new3D);
                     item.element.status = n3xt.elementStatus.valid;
                 });
+            });
+
+            killList.forEach(function(oldObj){
+                scene.remove(oldObj);
             });
         });
         this.updateStatus();
@@ -166,7 +179,6 @@ n3xt.Drawing = class extends n3xt.Group {
                 threeObj.n3xtID = element.id;
                 info.push({
                     element: element,
-                    old3D: element.threeObj,
                     new3D: threeObj
                 });
             });
@@ -221,6 +233,13 @@ n3xt.Drawing = class extends n3xt.Group {
     onRemoved(element) {
         this.removeFromStalePool(element);
     }
+
+    copyPosition(fromElement, toThreeObj) {
+        toThreeObj.position.x += fromElement.position.x;
+        toThreeObj.position.y += fromElement.position.y;
+        toThreeObj.position.z += fromElement.position.z;
+        toThreeObj.rotateY(fromElement.position.yaw);
+    }
 }
 /*****************************/
 n3xt.TestElement = class extends n3xt.Element {
@@ -247,24 +266,33 @@ n3xt.Material = class {
         this.bumpScale = 0.0005;
         this.repeatX = 1;
         this.repeatY = 1;
+        this.uvScale = 1
     }
 
-    threeMaterial(uvScale, done) {
-        n3xt.textureMaterial(this, uvScale, done);
+    threeMaterial(geometryScale, done) {
+        var materialScale = this.uvScale;
+        n3xt.textureMaterial(this, materialScale * geometryScale, done);
     }
 }
 
-n3xt.setMaterial = function(node, map) {
+n3xt.CheckerboardMaterial = class extends n3xt.Material {
+    constructor(color=0xffffff) {
+        super();
+        this.color = color;
+    }
+}
+
+n3xt.setMaterial = function(node, main, map) {
     if(node instanceof THREE.Mesh) {
+        //TODO: do this somewhere else
+        node.castShadow = true;
         if(map && map[node.name]) {
             node.material = map[node.name];
         }
-        //TODO: do this somewhere else
-        node.castShadow = true;
     }
     if (node.children) {
       for (var i = 0; i < node.children.length; i++) {
-        n3xt.setMaterial(node.children[i], map);
+        n3xt.setMaterial(node.children[i], main, map);
       }
     }
 }
@@ -315,6 +343,19 @@ n3xt.textureMaterial = function(definition, uvScale, done) {
 
     });
 }
+
+n3xt.PlainMaterial = class extends n3xt.Material {
+    constructor(color) {
+        super();
+        this.color = color;
+    }
+
+    threeMaterial(uvScale, done) {
+        done(new THREE.MeshPhongMaterial({color: this.color}));
+    }
+}
+
+
 /*****************************/
 n3xt.Geometry = class {
     constructor() {
@@ -330,29 +371,82 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
     constructor() {
         super();
         this.url = "";
+        this.layers = null;
+        this.loaded = function(geo, threeObj) { };
+        this.mainMaterial = new n3xt.CheckerboardMaterial();
         this.materialMap = {
-            layerName: new n3xt.Material()
+            layerName: new n3xt.CheckerboardMaterial()
         };
     }
 
-    //use this to have different layer names here than what's in the the 3d file
-    layerAlias(friendlyName) {
-        return friendlyName;
-    }
-
     instantiate(model, done) {
-        console.log(model, "modis");
         var self = this;
-        self.instantiateMaterialMap(function(threeMaterialMap) {
+        self.mainMaterial.threeMaterial(self.uvScale, function(threeMaterial){
             self.import(self.url, function(meshes) {
-                n3xt.setMaterial(meshes, threeMaterialMap);
-                done(meshes);
+                if(self.layers == null) {
+                    self.layers = {};
+                    console.log(meshes);
+                    meshes.traverse(function(obj){
+                        console.log(obj);
+                        if(obj instanceof THREE.Mesh) {
+                            var layerInfo = {
+                                name: obj.name,
+                                alias: obj.name,
+                                on: false
+                            };
+                            self.layers[layerInfo.name] = layerInfo;
+                        }
+                    });
+                }
+
+                self.materialMap = {};
+                var layerKeys = Object.keys(self.layers);
+                layerKeys.forEach(function(layerKey) {
+                    var layer = self.layers[layerKey];
+                    if(layer && layer.on) {
+                        self.materialMap[layer.name] = new n3xt.CheckerboardMaterial(self.aliasToColor(layer.alias));
+                    }
+                });
+
+                self.instantiateMaterialMap(function(threeMaterialMap) {
+                    console.log(threeMaterialMap);
+                    n3xt.setMaterial(meshes, threeMaterial, threeMaterialMap);
+                    if(self.loaded) self.loaded(self, meshes);
+                    done(meshes);
+                });
             });
         });
     }
 
+    getRandomColor() {
+        var letters = '0123456789ABCDEF';
+        var color = '0x';
+        for (var i = 0; i < 6; i++) {
+          color += letters[Math.floor(Math.random() * 16)];
+        }
+        return parseInt(color, 16);
+    }
+
+    hashCode(str) { // java String#hashCode
+        var hash = 0;
+        for (var i = 0; i < str.length; i++) {
+           hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return hash;
+    } 
+    
+    aliasToColor(alias){
+        var i = this.hashCode(alias);
+        var c = (i & 0x00FFFFFF)
+            .toString(16)
+            .toUpperCase();
+    
+        return parseInt("00000".substring(0, 6 - c.length) + c, 16);
+    }
+
     instantiateMaterialMap(done) {
         var self = this;
+        console.log(self.materialMap, "map");
         var keys = Object.keys(self.materialMap);
         var threeMaterialMap = { };
         async.map(keys, function(key, done) {
@@ -390,54 +484,190 @@ n3xt.ExternalGeometry = class extends n3xt.Geometry {
             loader.load(fileUrl, function(result) {
                 callback(result.scene);
             });
+        } else if(fileUrl.indexOf(".fbx") >= 0) {
+            var manager = new THREE.LoadingManager();
+            var loader = new THREE.FBXLoader(manager);
+            loader.load(fileUrl, function (geometry) {
+                console.log("volto");
+                var material = new THREE.MeshNormalMaterial()
+                var mesh = new THREE.Mesh(geometry, material)
+                callback(mesh);
+            });
+        } else if(fileUrl.indexOf(".dxf") >= 0) {
+            var loader = new DXFLoader(THREE);
+            loader.load(fileUrl, function (geometry) {
+                callback(geometry);
+            });
         } else {
             callback(null);
         }
+    }
+}
+
+n3xt.StudioGeometry = class extends n3xt.ExternalGeometry {
+    constructor(materialMap) {
+        super();
+        var self = this;
+        
+        var studioData = this.studioData;
+        
+        this.url = studioData.url;
+        this.uvScale = studioData.uvScale;
+        this.layerMap = studioData.layerMap;
+
+        this.materialMap = self.translatedMaterialMap(materialMap);
+    }
+
+    get studioData() {
+        return null;
+    }
+
+    translatedMaterialMap(materialMap) {
+        var translatedMaterialMap = {};
+        var self = this;
+        var layerAliases = Object.keys(self.layerMap);
+        layerAliases.forEach(function(layerAlias){
+            var layerNames = self.layerMap[layerAlias];
+            var material = materialMap[layerAlias];
+            layerNames.forEach(function(layerName){
+                translatedMaterialMap[layerName] = material;
+            });
+        });
+        return translatedMaterialMap;
+    }
+
+
+    instantiate(model, done) {
+        var self = this;
+        self.import(self.url, function(meshes) {
+            self.instantiateMaterialMap(function(threeMaterialMap) {
+                console.log(threeMaterialMap);
+                n3xt.setMaterial(meshes, null, threeMaterialMap);
+                if(self.loaded) self.loaded(self, meshes);
+                done(meshes);
+            });
+        });
+    }
+}
+
+
+/*****************************/
+n3xt.Studio = class extends n3xt.Element {
+    constructor(model={
+        url: "3d/test-materials-rvt-collada.dae",
+        uvScale: 1,
+        layers: null
+    }) { 
+        super(model); 
+        this.loadedGeometry = function(geo) {
+
+        };
+    }
+
+    get geometries() {
+        var self = this;
+        if(!self.model.url) return [];
+        var geo = new n3xt.ExternalGeometry();
+        geo.layers = self.model.layers;
+        geo.url = self.model.url;
+        geo.uvScale = self.model.uvScale;
+        geo.loaded = function(geo, threeObj) {
+            self.model.layers = geo.layers;
+            if(self.loadedGeometry) self.loadedGeometry(geo);
+        };
+        return [geo];
+    }
+}
+
+n3xt.StudioFloorGeometry = class extends n3xt.Geometry {
+    constructor() {
+        super();
+        this.uvScale = 0.05;
+    }
+    instantiate(model, done) {
+        var self = this;
+        var n3xtMaterial = new n3xt.CheckerboardMaterial();
+        n3xtMaterial.threeMaterial(self.uvScale, function(threeMaterial) {
+            var floorGeometry = new THREE.PlaneBufferGeometry( 20, 20 );
+            var floorMesh = new THREE.Mesh( floorGeometry, threeMaterial );
+            floorMesh.receiveShadow = true;
+			floorMesh.rotation.x = -Math.PI / 2.0;
+            done(floorMesh);
+        });
+    }
+}
+
+n3xt.StudioFloor = class extends n3xt.Element {
+    get geometries() {
+        return [new n3xt.StudioFloorGeometry()];
     }
 }
 /*****************************/
 var gunlocke = n3xt.namespace(gunlocke);
 
 gunlocke.TypicalZero = class extends n3xt.Element {
-    constructor(model) {
+    constructor(model = {
+        woodFinish: "dark",
+        tableFinish: "light"
+    }) {
         super(model);
         this.name = "Gunlocke Typical Zero";
+        this.position.x = -1;
+        
     }
 
     get geometries() {
-        console.log("passoqui");
+        var woodColor = this.model.woodFinish == "dark" ? 0x1D1111 : 0xD4BC98;
+        // var tableColor = this.model.tableFinish == "dark" ? 0x080808 : 0xaaaaaa;
+        var tableColor = this.model.tableFinish == "dark" ? 0x1D1111 : 0xD4BC98;
         return [
-            new gunlocke.TypicalZeroGeometry()
+            new gunlocke.TypicalZeroGeometry({
+                "Grommet": new n3xt.PlainMaterial(0x444444),
+                "Wood": new n3xt.PlainMaterial(woodColor),
+                "Trough": new n3xt.PlainMaterial(woodColor),
+                "Surface": new n3xt.PlainMaterial(tableColor),
+                "TVFrame": new n3xt.PlainMaterial(0x020202),
+                "TVScreen": new n3xt.PlainMaterial(0x020202)
+            }),
+            new gunlocke.TVGeometry()
         ];
     }
 }
 
-gunlocke.TypicalZeroGeometry = class extends n3xt.ExternalGeometry {
-    constructor() {
-        super();
-        this.url = "3d/test-02-3ds.dae";
-        this.uvScale = 3.5;
+gunlocke.TypicalZeroGeometry = class extends n3xt.StudioGeometry {
+    get studioData() {
+        return {
+            "url":"3d/test-02-3ds.dae","uvScale":3.2,
+            "layerMap":{
+                "Grommet":[" Extrusion [4678]"," Extrusion [4821]"],
+                "Wood":[" Extrusion [2837]"," Extrusion [2980]"," Joined Solid Geometry [3926]"," Extrusion [3949]"," Extrusion [4287]"],
+                "Surface":[" Joined Solid Geometry [3927]"],"Trough":[" Extrusion [4360]"],
+                "TVFrame":[" Extrusion [5154]"],
+                "TVScreen":[" Blend [5296]"," Extrusion [5555]"]}};
+    }
+}
 
-        var layerMap = {
-            grometBorder: " Extrusion [4678]",
-            grometLid: " Extrusion [4821]",
-            tvFrame: " Extrusion [5154]",
-            tvScreen: " Extrusion [5555]",
-            tableTop: " Joined Solid Geometry [3927]",
-            tableTray: " Extrusion [4360]"
-        };
+//TODO: it seems those video textures can't be recreated, that's why i put it in this global var. Gotta think of a solution for that, maybe some video texture cache or something.
+var gunlockeVideoTexture = new THREE.VideoTexture( document.getElementById("video") );
+gunlockeVideoTexture.minFilter = THREE.LinearFilter;
+gunlockeVideoTexture.magFilter = THREE.LinearFilter;
+gunlockeVideoTexture.format = THREE.RGBFormat;
 
+gunlocke.TVGeometry = class extends n3xt.Geometry {
+    instantiate(model, done) {
+        var planeGeometry = new THREE.PlaneGeometry( .98, .54 );
+        planeGeometry.rotateY( Math.PI / 2 );
 
-        this.materialMap = { };
-        this.materialMap[layerMap.tableTop] = new n3xt.Material();
-        this.materialMap[layerMap.tvFrame] = new n3xt.Material();
-        this.materialMap[layerMap.tvScreen] = new n3xt.Material();
-        this.materialMap[layerMap.grometBorder] = new n3xt.Material();
-        this.materialMap[layerMap.grometLid] = new n3xt.Material();
+        var parameters = { color: 0xaaaaaa, map: gunlockeVideoTexture };
+        var material = new THREE.MeshLambertMaterial( parameters );
+
+        var screen = new THREE.Mesh( planeGeometry, material );
+        screen.position.set(.19,1.555,0);        
+
+        done(screen);
     }
 }
 
 tests.push(function(engine) {
-    console.log("passokitoo");
     engine.add(new gunlocke.TypicalZero({}));
 });
