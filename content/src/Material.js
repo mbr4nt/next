@@ -24,6 +24,15 @@ n3xt.CheckerboardMaterial = class extends n3xt.Material {
     }
 }
 
+n3xt.WoodMaterial = class extends n3xt.Material {
+    constructor(color=0xffffff) {
+        super();
+        this.textureMapUrl = "textures/100746-4.jpeg";
+        this.bumpMapUrl = "textures/100746-4.jpeg";
+        this.color = color;
+    }
+}
+
 n3xt.setMaterial = function(node, main, map) {
     if(node instanceof THREE.Mesh) {
         //TODO: do this somewhere else
@@ -87,13 +96,18 @@ n3xt.textureMaterial = function(definition, uvScale, done) {
 }
 
 n3xt.PlainMaterial = class extends n3xt.Material {
-    constructor(color) {
+    constructor(color, opacity) {
         super();
         this.color = color;
+        this.opacity = opacity;
     }
 
     threeMaterial(uvScale, done) {
-        done(new THREE.MeshPhongMaterial({color: this.color}));
+        if(this.opacity) {
+            done(new THREE.MeshPhongMaterial({color: this.color, transparent: true, opacity: this.opacity, shininess: 100 }));
+        } else {
+            done(new THREE.MeshPhongMaterial({color: this.color, shininess: 5 }));
+        }
     }
 }
 

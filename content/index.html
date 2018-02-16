@@ -70,16 +70,16 @@
 				<div class="options">
 					<div class="selection" id="woodFinish.dark"  onclick="select('woodFinish', 'dark');">
 						<div><img src="textures/dark-wood.jpg" /></div>
-						<div>Dark</div>
+						<div>Gray</div>
 					</div>
 					<div class="selection" id="woodFinish.light" onclick="select('woodFinish', 'light');">
 						<div><img src="textures/light-wood.jpg" /></div>
-						<div>Light</div>
+						<div>Brown</div>
 					</div>
 				</div>
 			</div>
 
-			<div>
+			<!-- <div>
 				<h3>Table Finish</h3>
 				<div class="options">
 					<div id="tableFinish.dark" class="selection" onclick="select('tableFinish', 'dark');">
@@ -91,11 +91,11 @@
 						<div>Light</div>
 					</div>
 				</div>
-			</div>
+			</div> -->
 
-			<video id="video" autoplay loop webkit-playsinline muted style="display:none"> 
+			<!-- <video id="video" autoplay loop webkit-playsinline muted style="display:none"> 
 				<source src="textures/video.mp4" type="video/mp4"> 
-			</video>
+			</video> -->
 
 		</div>
 
@@ -148,9 +148,26 @@
 
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
+			var raycaster = new THREE.Raycaster();
+			var mouse = new THREE.Vector2();
+
+			function onMouseMove( event ) {
+
+				// calculate mouse position in normalized device coordinates
+				// (-1 to +1) for both components
+
+				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+
+			}
+
+
 			var camera, scene, renderer, controls;
 
 				var engine = null;
+
+				var sphere;
 
 			init();
 			animate();
@@ -160,8 +177,8 @@
 				var container = document.getElementById( 'container' );
 
 				camera = new THREE.PerspectiveCamera( 50, window.innerWidth * 0.75 / window.innerHeight, 0.1, 100 );
-				camera.position.x = 4.35;
-				camera.position.y = 3.22;
+				camera.position.x = 6.35;
+				camera.position.y = 0;
 				camera.position.z = 0;
 
 				scene = new THREE.Scene();
@@ -189,7 +206,7 @@
 				//Lights
 				scene.add( new THREE.AmbientLight( 0xf0f0f0 ) );
 				var light = new THREE.SpotLight( 0xffffff, 1 );
-				light.position.set( 2, 10, 0 );
+				light.position.set( 5, 10, 0 );
 				light.castShadow = true;
 				// light.shadow = new THREE.LightShadow( new THREE.PerspectiveCamera( 70, 1, 200, 2000 ) );
 				// light.shadow.bias = -0.000222;
@@ -216,6 +233,7 @@
 
 
 				
+				
 			}
 
 			function onWindowResize() {
@@ -239,6 +257,25 @@
 
 			var previousShadowMap = false;
 			function render() {
+
+				// // update the picking ray with the camera and mouse position
+				// raycaster.setFromCamera( mouse, camera );
+
+				// // calculate objects intersecting the picking ray
+				// var allIntersected = raycaster.intersectObjects( scene.children, true );
+				// if(allIntersected.length > 0) {
+				// 	var intersected = allIntersected[0];
+				// 	// allIntersected.forEach(function(intersected){
+				// 		if(intersected.object.geometry.type.toString() != "PlaneGeometry") {
+				// 			pln(intersected.point);
+				// 			// sphere.position.y = intersected.point.y;
+				// 			// sphere.position.x = intersected.point.x;
+				// 			// sphere.position.y = intersected.point.y;
+				// 			// sphere.position.z = intersected.point.z;
+				// 			controls.target = intersected.point;
+				// 		}
+				// 	// });
+				// }
 
 				renderer.render( scene, camera );
 
